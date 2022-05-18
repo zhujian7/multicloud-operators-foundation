@@ -31,11 +31,11 @@ const (
 )
 
 //go:embed manifests
-//go:embed manifests/chart
-//go:embed manifests/chart/templates/_helpers.tpl
+//go:embed manifests/managed-chart/templates/_helpers.tpl
+//go:embed manifests/management-chart/templates/_helpers.tpl
 var ChartFS embed.FS
 
-const ChartDir = "manifests/chart"
+const ChartDir = "manifests/managed-chart"
 
 type GlobalValues struct {
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,"`

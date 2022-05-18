@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  creationTimestamp: null
+  name: klusterlet-hypershift-aws-demo-t2bds
+spec: {}
+status: {}

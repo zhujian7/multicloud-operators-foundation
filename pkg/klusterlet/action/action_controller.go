@@ -16,9 +16,9 @@ import (
 // ActionReconciler reconciles a Action object
 type ActionReconciler struct {
 	client.Client
-	Log                 logr.Logger
-	Scheme              *runtime.Scheme
-	DynamicClient       dynamic.Interface
+	Log    logr.Logger
+	Scheme *runtime.Scheme
+	// DynamicClient       dynamic.Interface
 	KubeControl         restutils.KubeControlInterface
 	EnableImpersonation bool
 }
@@ -29,10 +29,10 @@ func NewActionReconciler(client client.Client,
 	kubeControl restutils.KubeControlInterface,
 	enableImpersonation bool) *ActionReconciler {
 	return &ActionReconciler{
-		Client:              client,
-		Log:                 log,
-		Scheme:              scheme,
-		DynamicClient:       dynamicClient,
+		Client: client,
+		Log:    log,
+		Scheme: scheme,
+		// DynamicClient:       dynamicClient,
 		KubeControl:         kubeControl,
 		EnableImpersonation: enableImpersonation,
 	}

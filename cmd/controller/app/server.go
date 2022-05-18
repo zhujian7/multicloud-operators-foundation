@@ -51,6 +51,8 @@ import (
 	clusterv1beta1 "open-cluster-management.io/api/cluster/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -172,7 +174,12 @@ func Run(o *options.ControllerRunOptions, ctx context.Context) error {
 			WithScheme(scheme).
 			WithGetValuesFuncs(getValuesFunc, addonfactory.GetValuesFromAddonAnnotation).
 			WithAgentRegistrationOption(registrationOption).
-			WithInstallStrategy(addonagent.InstallAllStrategy(o.AddonInstallNamespace)).
+			// WithInstallStrategy(addonagent.InstallAllStrategy(o.AddonInstallNamespace)).
+			WithInstallStrategy(addonagent.InstallByLabelStrategy(o.AddonInstallNamespace, metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"install-work-mgr": "true",
+				},
+			})).
 			BuildHelmAgentAddon()
 		if err != nil {
 			klog.Errorf("failed to build agent %v", err)

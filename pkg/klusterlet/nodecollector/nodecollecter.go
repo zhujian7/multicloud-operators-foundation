@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"reflect"
@@ -86,13 +87,15 @@ func NewCollector(
 	kubeClient kubernetes.Interface,
 	client client.Client, clusterName, componentNamespace string) Collector {
 	return &resourceCollector{
-		nodeLister:         nodeInformer.Lister(),
-		nodeSynced:         nodeInformer.Informer().HasSynced,
-		kubeClient:         kubeClient,
-		client:             client,
-		clusterName:        clusterName,
-		server:             defaultServer,
-		tokenFile:          defaultTokenFile,
+		nodeLister:  nodeInformer.Lister(),
+		nodeSynced:  nodeInformer.Informer().HasSynced,
+		kubeClient:  kubeClient,
+		client:      client,
+		clusterName: clusterName,
+		// server:             defaultServer,
+		server: "https://prometheus-k8s-openshift-monitoring.apps.hypershift-aws-demo.demo.red-chesterfield.com",
+		// tokenFile:          defaultTokenFile,
+		tokenFile:          "/tmp/managed-kubeconfig-token",
 		componentNamespace: componentNamespace,
 	}
 }
@@ -148,6 +151,11 @@ func (r *resourceCollector) updateCapacityByPrometheus(ctx context.Context, node
 		return nodes
 	}
 
+	caData, err = ioutil.ReadFile("/tmp/managed-kubeconfig-ca")
+	if err != nil {
+		klog.Errorf("read CA data err:", err)
+	}
+
 	if !reflect.DeepEqual(r.caData, caData) {
 		apiClient, err := r.newPrometheusClient(caData)
 		if err != nil {
@@ -162,6 +170,8 @@ func (r *resourceCollector) updateCapacityByPrometheus(ctx context.Context, node
 	sockets, err := r.queryResource(ctx, r.prometheusClient, "machine_cpu_sockets")
 	if err != nil {
 		klog.Errorf("failed to query resource: %v", err)
+	} else {
+		klog.Errorf("==== query resource completed: %v", sockets)
 	}
 
 	for index := range nodes {
@@ -260,6 +270,7 @@ func (r *resourceCollector) newPrometheusClient(caData []byte) (prometheusv1.API
 	if err != nil {
 		return nil, err
 	}
+
 	// read token from token files
 	client, err := prometheusapi.NewClient(prometheusapi.Config{
 		Address:      r.server,

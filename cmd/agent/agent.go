@@ -3,8 +3,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/base64"
+	"io"
+	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/stolostron/multicloud-operators-foundation/cmd/agent/app"
@@ -83,13 +88,76 @@ func startManager(o *options.AgentOptions, ctx context.Context) {
 		setupLog.Error(err, "Unable to get hub kube config.")
 		os.Exit(1)
 	}
-	managedClusterConfig, err := clientcmd.BuildConfigFromFlags("", o.KubeConfig)
+
+	// create management kube config
+	managementKubeConfig, err := clientcmd.BuildConfigFromFlags("", o.KubeConfig)
 	if err != nil {
-		setupLog.Error(err, "Unable to get managed cluster kube config.")
+		setupLog.Error(err, "Unable to get management cluster kube config.")
 		os.Exit(1)
 	}
-	managedClusterConfig.QPS = o.QPS
-	managedClusterConfig.Burst = o.Burst
+	managementKubeConfig.QPS = o.QPS
+	managementKubeConfig.Burst = o.Burst
+
+	// load managed client config, the work manager agent may not running in the managed cluster.
+	managedClusterConfig := managementKubeConfig
+	if o.ManagedKubeConfig != "" {
+		managedClusterConfig, err = clientcmd.BuildConfigFromFlags("", o.ManagedKubeConfig)
+		if err != nil {
+			setupLog.Error(err, "Unable to get managed cluster kube config.")
+			os.Exit(1)
+		}
+		managedClusterConfig.QPS = o.QPS
+		managedClusterConfig.Burst = o.Burst
+
+		fi, err := os.Open(o.ManagedKubeConfig)
+		if err != nil {
+			setupLog.Error(err, "Unable to read managed cluster kube config.")
+			os.Exit(1)
+		}
+		defer fi.Close()
+
+		token := ""
+		ca := ""
+		br := bufio.NewReader(fi)
+		for {
+			a, _, c := br.ReadLine()
+			if c == io.EOF {
+				break
+			}
+
+			if strings.Contains(string(a), "token: ") {
+				strToken := string(a)
+				token = strings.TrimPrefix(strings.Trim(strToken, " "), "token: ")
+			}
+
+			if strings.Contains(string(a), "certificate-authority-data: ") {
+				strCa := string(a)
+				ca = strings.TrimPrefix(strings.Trim(strCa, " "), "certificate-authority-data: ")
+			}
+
+			if token != "" && ca != "" {
+				break
+			}
+		}
+
+		cadata, err := base64.StdEncoding.DecodeString(ca)
+		if err != nil {
+			setupLog.Error(err, "Unable to decode ca")
+			os.Exit(1)
+		}
+
+		err = ioutil.WriteFile("/tmp/managed-kubeconfig-token", []byte(token), 0644)
+		if err != nil {
+			setupLog.Error(err, "Unable to write managed cluster config token.")
+			os.Exit(1)
+		}
+
+		err = ioutil.WriteFile("/tmp/managed-kubeconfig-ca", []byte(cadata), 0644)
+		if err != nil {
+			setupLog.Error(err, "Unable to write managed cluster config ca.")
+			os.Exit(1)
+		}
+	}
 
 	managedClusterDynamicClient, err := dynamic.NewForConfig(managedClusterConfig)
 	if err != nil {
@@ -101,7 +169,7 @@ func startManager(o *options.AgentOptions, ctx context.Context) {
 		setupLog.Error(err, "Unable to create managed cluster kube client.")
 		os.Exit(1)
 	}
-	routeV1Client, err := routev1.NewForConfig(managedClusterConfig)
+	routeV1Client, err := routev1.NewForConfig(managementKubeConfig)
 	if err != nil {
 		setupLog.Error(err, "New route client config error:")
 	}

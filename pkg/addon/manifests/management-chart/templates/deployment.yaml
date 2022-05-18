@@ -20,6 +20,8 @@ spec:
         component: "work-manager"
     spec:
       serviceAccountName: {{ template "work-manager.fullname" . }}
+      securityContext:
+        runAsNonRoot: true
       containers:
       - name: acm-agent
         image: "{{ .Values.global.imageOverrides.multicloud_manager }}"
@@ -31,7 +33,6 @@ spec:
             - ALL
           privileged: false
           readOnlyRootFilesystem: true
-          runAsNonRoot: true
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         args:
@@ -46,6 +47,9 @@ spec:
           - "--agent-route={{ .Release.Namespace }}/{{ template "work-manager.fullname" . }}"
         {{- else  }}
           - "--agent-service={{ .Release.Namespace }}/{{ template "work-manager.fullname" . }}"
+        {{- end }}
+        {{- if eq .Values.installMode "Hosted" }}
+          - "--managed-kubeconfig=/managed/config/kubeconfig"
         {{- end }}
         env:
         - name: POD_NAMESPACE
@@ -70,12 +74,22 @@ spec:
             mountPath: /tmp
           - name: klusterlet-config
             mountPath: /var/run/klusterlet
+          {{- if eq .Values.installMode "Hosted" }}
+          - name: managed-kubeconfig-secret
+            mountPath: "/managed/config"
+            readOnly: true
+          {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
         - name: klusterlet-config
           secret:
             secretName: {{ .Values.hubKubeConfigSecret }}
+        {{- if eq .Values.installMode "Hosted" }}
+        - name: managed-kubeconfig-secret
+          secret:
+            secretName: {{ .Values.externalManagedKubeConfigSecret }}
+        {{- end }}
       {{- if .Values.global.imagePullSecret }}
       imagePullSecrets:
       - name: "{{ .Values.global.imagePullSecret }}"

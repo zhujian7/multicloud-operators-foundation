@@ -1,0 +1,8 @@
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: ManagedClusterAddOn
+metadata:
+  name: work-manager
+  namespace: hypershift-aws-demo-l7hlf 
+spec:
+  #installNamespace: zjtest-hosted-addon-test 
+  installNamespace: klusterlet-hypershift-aws-demo-l7hlf

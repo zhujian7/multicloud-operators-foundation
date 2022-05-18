@@ -1,0 +1,42 @@
+---
+# Default values for work-manager addOn.
+org: open-cluster-management
+
+nameOverride: work-manager
+fullnameOverride: klusterlet-addon-workmgr
+
+hubKubeConfigSecret: "work-manager-hub-kubeconfig"
+clusterName: hypershift-aws-demo-l7hlf
+
+product: "OpenShift"
+hasRoute: false
+
+affinity: {}
+
+tolerations:
+- key: "dedicated"
+  operator: "Equal"
+  value: "infra"
+  effect: "NoSchedule"
+- key: node-role.kubernetes.io/infra
+  operator: Exists
+  effect: NoSchedule
+
+resources:
+  requests:
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+logLevel: null
+
+global: 
+  # imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
+  imagePullSecret: open-cluster-management-image-pull-credentials
+  imageOverrides: 
+    multicloud_manager: quay.io/zhujian/multicloud-manager:hosted-addon
+  nodeSelector: {}
+
+externalManagedKubeConfigSecret: "external-work-manager-addon-kubeconfig"
+installMode: "Hosted"
